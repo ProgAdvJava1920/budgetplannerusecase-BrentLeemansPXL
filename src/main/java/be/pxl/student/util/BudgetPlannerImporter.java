@@ -2,12 +2,12 @@ package be.pxl.student.util;
 
 import be.pxl.student.entity.Account;
 import be.pxl.student.entity.Payment;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import java.io.BufferedReader;
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
+import java.nio.file.*;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
@@ -18,9 +18,22 @@ import java.util.*;
 public class BudgetPlannerImporter {
     private Map<String, List<Payment>> paymentByAccount = new HashMap<>();
     private List<Account> accounts = new ArrayList<>();
+    private static final Logger LOGGER = LogManager.getLogger(BudgetPlannerImporter.class);
+    private PathMatcher csvMatcher = FileSystems.getDefault().getPathMatcher("glob:**/*.csv");
+
 
     public void readFile(String filename) {
         Path path = Paths.get(System.getProperty("user.dir")).resolve("src/main/resources/" + filename);
+
+        if (!csvMatcher.matches(path)) {
+            LOGGER.error("Invalid file: .csv expected. Provided {}", path);
+        }
+
+        if (!Files.exists(path)) {
+            LOGGER.error("File {} does not exist", path);
+        }
+
+
         try (BufferedReader reader = Files.newBufferedReader(path)) {
             String line = reader.readLine();
             line = reader.readLine();
@@ -30,7 +43,7 @@ public class BudgetPlannerImporter {
             }
             addPaymentsToAccount();
         } catch (IOException e) {
-            e.printStackTrace();
+            LOGGER.fatal("An error occured while reading : {}", path);
         }
     }
 
@@ -74,15 +87,14 @@ public class BudgetPlannerImporter {
     private void addPaymentsToAccount() {
         for (Map.Entry<String, List<Payment>> entry : paymentByAccount.entrySet()) {
             for (Account acc : accounts) {
-                if (acc.getIBAN().equals(entry.getKey()))
-                {
+                if (acc.getIBAN().equals(entry.getKey())) {
                     acc.setPayments(entry.getValue());
                 }
             }
         }
     }
 
-    public List<Account> getAccounts(){
+    public List<Account> getAccounts() {
         return accounts;
     }
 }
